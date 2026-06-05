@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shawano's Lisse Barkaart</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
+    <style>
+        :root { --blue: #002d62; --dark: #000c1a; --red: #da291c; --card: #1a2b44; --green: #28a745; --text: #ffffff; }
+        
+        .version-tag { position: absolute; top: 10px; left: 10px; font-size: 0.7rem; color: rgba(255,255,255,0.3); pointer-events: none; z-index: 9999; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: var(--text); margin: 0; padding: 10px; text-align: center; position: relative; }
+        .logo-img { max-width: 120px; margin: 10px 0; }
+        .alfabet-menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin: 15px 0; }
+        .letter-btn { padding: 10px 14px; border: 1px solid var(--blue); border-radius: 8px; background: var(--card); color: white; cursor: pointer; font-weight: bold; text-decoration: none; }
+        .letter-btn.active { background: var(--blue); border-color: white; }
+        .admin-btn { background: var(--red); border: none; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding: 10px; max-width: 1400px; margin: 0 auto;}
+        .card { background: var(--card); color: var(--text) !important; border-radius: 12px; display: flex; align-items: center; cursor: pointer; height: 80px; border: 1px solid rgba(255,255,255,0.1); transition: transform 0.1s; }
+        .card:active { transform: scale(0.98); background: #243b5e; }
+        .name { flex: 1; text-align: left; padding-left: 15px; font-weight: bold; color: var(--text) !important; }
+        .saldo { width: 100px; font-weight: bold; }
+        .pos { color: #44ff77 !important; } .neg { color: #ff4444 !important; }
+        
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); z-index:1000; overflow-y: auto; }
+        
+        /* Modal indeling op basis van actieve modus */
+        {% if modus == 'batch' %}
+        .modal-content { max-width: 950px; margin: 40px auto; padding: 25px; background: var(--dark); border-radius: 15px; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        {% else %}
+        .modal-content { max-width: 600px; margin: 40px auto; padding: 25px; background: var(--dark); border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        {% endif %}
+        
+        .col-left { display: flex; flex-direction: column; text-align: left; }
+        .col-right { background: #ffffff; color: #000000; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; text-align: left; box-sizing: border-box; }
+        
+        .prod-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+        .prod-btn { padding: 15px; font-size: 1rem; border-radius: 10px; border: 2px solid var(--blue); background: var(--card); color: white; cursor: pointer; font-weight: bold; text-align: center; }
+        .prod-btn.selected { border-color: var(--green); background: #1e3a5a; box-shadow: 0 0 8px var(--green); }
+        
+        /* Numpad knoppen indeling */
+        .numpad { display: grid; gap: 8px; margin: 15px 0; }
+        {% if modus == 'batch' %}
+        .numpad { grid-template-columns: repeat(4, 1fr); }
+        .num-btn { padding: 15px 5px; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; text-align: center; }
+        .num-btn.krat { background: var(--blue); }
+        {% else %}
+        .numpad { grid-template-columns: repeat(10, 1fr); gap: 6px; }
+        .num-btn { padding: 12px 2px; background: #333; color: white; border: 1px solid #555; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; text-align: center; grid-column: span 2; }
+        .num-btn.krat { grid-column: span 5; font-size: 0.9rem; background: var(--blue); }
+        {% endif %}
+        
+        .num-btn.selected { background: var(--red); border-color: white; }
+        
+        .history-container { margin-bottom: 15px; text-align: left; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: #fff; }
+        .history-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.8rem; color: rgba(255,255,255,0.7); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        
+        .bon-lijst { flex: 1; overflow-y: auto; margin-bottom: 15px; border-bottom: 2px solid #eee; min-height: 180px; max-height: 300px; }
+        .bon-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 1.1rem; border-bottom: 1px solid #f0f0f0; color: #000000; }
+        .remove-btn { color: var(--red); cursor: pointer; font-weight: bold; padding: 0 10px; font-size: 1.2rem; user-select: none; }
+        
+        .confirm-btn { width: 100%; padding: 20px; font-size: 1.4rem; background: var(--green); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .cancel-btn { width: 100%; margin-top: 10px; padding: 15px; background: #444; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .undo-global { background: var(--red); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-weight: bold; width: 100%; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="version-tag">v{{ version }}</div>
+    <img src="{{ url_for('static', filename='logo.png') }}" class="logo-img">
+    
+    {% if bar_message %}
+    <div style="background: var(--red); color: white; padding: 15px; margin: 10px auto; max-width: 800px; border-radius: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 4px 15px rgba(218, 41, 28, 0.4); animation: pulse-msg 2s infinite;">
+        📢 MEDEDELING: {{ bar_message }}
+    </div>
+    <style> @keyframes pulse-msg { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } } </style>
+    {% endif %}
+
+    <div class="alfabet-menu">
+        <button class="letter-btn active" onclick="filterNames('ALL', this)">ALLE</button>
+        {% for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}<button class="letter-btn" onclick="filterNames('{{l}}', this)">{{l}}</button>{% endfor %}
+        <a href="/admin" class="letter-btn admin-btn">⚙️ Beheer</a>
+    </div>
+
+    <div class="grid" id="grid">
+        {% for l in leden %}
+        <div class="card" data-naam="{{ l.naam }}" onclick="openMember('{{ l.naam }}')">
+            <div class="name">{{ l.naam }}</div>
+            <div class="saldo {% if l.saldo_getal >= 0 %}pos{% else %}neg{% endif %}">€ {{ l.saldo }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="step1" class="modal">
+        <div class="modal-content">
+            {% if modus == 'batch' %}
+            <div class="col-left">
+                <h2 id="curName" style="color:var(--red); margin:0 0 10px 0;"></h2>
+                <div class="history-container"><div id="history-content">Laden...</div></div>
+                <div class="prod-grid">
+                    {% for p in producten %}
+                    <button class="prod-btn" id="btn-{{ p.Naam }}" onclick="selectProductBatch('{{ p.Naam }}', {{ p.Prijs }}, this)">{{ p.Naam }}<br>€{{ "%.2f"|format(p.Prijs) }}</button>
+                    {% endfor %}
+                </div>
+                <div class="numpad">
+                    <button class="num-btn" onclick="addBulkBatch(1)">+1</button>
+                    <button class="num-btn" onclick="addBulkBatch(5)">+5</button>
+                    <button class="num-btn krat" onclick="addBulkBatch(12)">½ KRAT</button>
+                    <button class="num-btn krat" onclick="addBulkBatch(24)">HELE KRAT</button>
+                </div>
+            </div>
+            <div class="col-right">
+                <h3 style="margin-top: 0; color: #000; border-bottom: 2px solid var(--blue); padding-bottom: 5px;">Bon</h3>
+                <div id="bon-lijst" class="bon-lijst"></div>
+                <div style="text-align: right; font-size: 1.5rem; font-weight: bold; color: #000; margin-bottom: 15px;">Totaal: <span id="totaal-bedrag">€ 0,00</span></div>
+                <button id="final-btn" class="confirm-btn" onclick="sendBatchStreep()" style="display:none;">STREEP BON</button>
+                <button onclick="closeModal()" class="cancel-btn">ANNULEREN</button>
+                {% if has_role('kassa') %}<button class="undo-global" onclick="globalUndo()">UNDO LAATSTE STREEP</button>{% endif %}
+            </div>
+            
+            {% else %}
+            <div style="width: 100%; text-align: left;">
+                <h2 id="curName" style="color:var(--red); margin:0 0 10px 0;"></h2>
+                <div class="history-container"><div id="history-content">Laden...</div></div>
+                <div class="prod-grid">
+                    {% for p in producten %}
+                    <button class="prod-btn" onclick="selectProductNumpad('{{ p.Naam }}', {{ p.Prijs }}, this)">{{ p.Naam }}<br>€{{ "%.2f"|format(p.Prijs) }}</button>
+                    {% endfor %}
+                </div>
+                <div class="numpad">
+                    {% for i in range(1, 11) %}<button class="num-btn {% if i==1 %}selected{% endif %}" onclick="setAantalNumpad({{i}}, this)">{{i}}</button>{% endfor %}
+                    <button class="num-btn krat" onclick="setAantalNumpad(12, this)">12 <small>½ KRAT</small></button>
+                    <button class="num-btn krat" onclick="setAantalNumpad(24, this)">24 <small>HELE KRAT</small></button>
+                </div>
+                <button id="final-btn" class="confirm-btn" onclick="sendStreepNumpad()" style="display:none;">NU STREPEN!</button>
+                <button onclick="closeModal()" class="cancel-btn">ANNULEREN</button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        let curPerson = "", cart = [], activeProduct = null;
+        let curProductNumpad = "", geselecteerdAantalNumpad = 1, curProductPrijsNumpad = 0;
+        const huidigSysteemModus = "{{ modus }}";
+        
+        // --- TIMEOUT LOGICA VOOR REFRESH ---
+        let idleTimer;
+        let modalOpen = false;
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            if (!modalOpen) {
+                idleTimer = setTimeout(function() {
+                    location.reload();
+                }, 30000); // 30 seconden
+            }
+        }
+
+        window.onload = resetIdleTimer;
+        window.onmousemove = resetIdleTimer;
+        window.onmousedown = resetIdleTimer;
+        window.ontouchstart = resetIdleTimer;
+        window.onclick = resetIdleTimer;
+        window.onkeypress = resetIdleTimer;
+        // ------------------------------------
+
+        function filterNames(l, btn) {
+            document.querySelectorAll('.letter-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+            document.querySelectorAll('.card').forEach(c => {
+                c.style.display = (l === 'ALL' || c.dataset.naam.toUpperCase().startsWith(l.toUpperCase())) ? 'flex' : 'none';
+            });
+            resetIdleTimer();
+        }
+
+        function openMember(n) {
+            modalOpen = true;
+            clearTimeout(idleTimer);
+
+            curPerson = n; cart = []; activeProduct = null;
+            curProductNumpad = ""; geselecteerdAantalNumpad = 1; curProductPrijsNumpad = 0;
+            
+            document.querySelectorAll('#curName').forEach(el => el.innerText = n);
+            document.getElementById('final-btn').style.display = 'none';
+            document.getElementById('history-content').innerHTML = "<i>Laden...</i>";
+            document.querySelectorAll('.prod-btn').forEach(b => b.classList.remove('selected'));
+            
+            if (huidigSysteemModus === 'numpad') {
+                document.querySelectorAll('.num-btn').forEach((b, i) => { 
+                    if(i === 0) b.classList.add('selected'); else b.classList.remove('selected'); 
+                });
+            } else {
+                updateBonUI();
+            }
+            
+            document.getElementById('step1').style.display = 'block';
+            
+            fetch('/get_history/' + encodeURIComponent(n))
+                .then(res => res.json())
+                .then(data => {
+                    let html = "";
+                    if (!data || data.length === 0) {
+                        html = "<i style='color:#aaa;'>Nog geen bestellingen gevonden.</i>";
+                    } else {
+                        data.forEach(h => {
+                            const kleur = h.bedrag.includes('-') ? '#da291c' : '#28a745';
+                            html += `<div class="history-item"><span>${h.datum} - ${h.product}</span><span style="color:${kleur} !important; font-weight:bold;">€${h.bedrag}</span></div>`;
+                        });
+                    }
+                    document.getElementById('history-content').innerHTML = html;
+                })
+                .catch(() => { document.getElementById('history-content').innerHTML = "<i style='color:red;'>Fout bij laden historie.</i>"; });
+        }
+
+        /* ================= LOGICA: STAPEL / BON MODUS ================= */
+        function selectProductBatch(prod, prijs, el) {
+            activeProduct = {product: prod, prijs: prijs};
+            document.querySelectorAll('.prod-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+            
+            let item = cart.find(i => i.product === prod);
+            if (item) item.aantal++; else cart.push({product: prod, aantal: 1, prijs: prijs});
+            updateBonUI();
+        }
+
+        function addBulkBatch(n) {
+            if(!activeProduct) { alert("Selecteer eerst een product!"); return; }
+            let item = cart.find(i => i.product === activeProduct.product);
+            if (item) item.aantal += n; else cart.push({product: activeProduct.product, aantal: n, prijs: activeProduct.prijs});
+            updateBonUI();
+        }
+
+        function removeItem(index) { cart.splice(index, 1); updateBonUI(); }
+
+        function updateBonUI() {
+            let html = "", tot = 0;
+            cart.forEach((i, idx) => {
+                tot += (i.prijs * i.aantal);
+                html += `<div class="bon-item"><span><strong>${i.aantal}x</strong> ${i.product}</span><div><span class="remove-btn" onclick="removeItem(${idx})">×</span><span style="font-weight:bold; min-width:60px; display:inline-block; text-align:right;">€ ${(i.prijs * i.aantal).toFixed(2).replace('.',',')}</span></div></div>`;
+            });
+            document.getElementById('bon-lijst').innerHTML = html;
+            document.getElementById('totaal-bedrag').innerText = "€ " + tot.toFixed(2).replace('.', ',');
+            document.getElementById('final-btn').style.display = cart.length > 0 ? 'block' : 'none';
+        }
+
+        function sendBatchStreep() {
+            const btn = document.getElementById('final-btn');
+            btn.disabled = true; btn.innerText = "BEZIG...";
+            fetch('/streep_batch', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({naam: curPerson, items: cart})
+            }).then(res => res.json()).then(data => { if(data.status === 'success') location.reload(); else { alert(data.message); btn.disabled = false; btn.innerText = "STREEP BON"; } });
+        }
+
+        /* ================= LOGICA: NUMPAD MODUS ================= */
+        function selectProductNumpad(p, prijs, btn) {
+            curProductNumpad = p;
+            curProductPrijsNumpad = prijs;
+            document.querySelectorAll('.prod-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            updateConfirmButtonNumpad();
+        }
+
+        function setAantalNumpad(n, btn) {
+            geselecteerdAantalNumpad = n;
+            document.querySelectorAll('.num-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            updateConfirmButtonNumpad();
+        }
+
+        function  updateConfirmButtonNumpad() {
+            const btn = document.getElementById('final-btn');
+            if(curProductNumpad) { 
+                const totaalBedrag = (curProductPrijsNumpad * geselecteerdAantalNumpad).toFixed(2).replace('.', ',');
+                btn.style.display = 'block'; 
+                btn.innerText = `STREEP ${geselecteerdAantalNumpad}x ${curProductNumpad} (Totaal: €${totaalBedrag})`; 
+            }
+        }
+
+        function sendStreepNumpad() {
+            const btn = document.getElementById('final-btn');
+            btn.disabled = true; btn.innerText = "BEZIG...";
+            fetch('/streep', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({naam: curPerson, product: curProductNumpad, aantal: geselecteerdAantalNumpad})
+            }).then(res => {
+                if (!res.ok) return res.json().then(d => { throw new Error(d.message) });
+                location.reload();
+            }).catch(err => { alert(err.message); btn.disabled = false; btn.innerText = "PROBEER OPNIEUW"; });
+        }
+
+        function globalUndo() {
+            if(confirm("Laatste streep-actie uit de database ongedaan maken?")) {
+                fetch('/admin/undo_last_streep').then(res => res.json()).then(data => { alert(data.message); location.reload(); });
+            }
+        }
+
+        function closeModal() { 
+            document.getElementById('step1').style.display='none'; 
+            modalOpen = false;
+            resetIdleTimer();
+        }
+    </script>
+</body>
+</html>
