@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Shawano's Lisse</title>
+    <style>
+        :root { --blue: #002d62; --dark: #000c1a; --red: #da291c; --green: #28a745; --card: #1a2b44; --text: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1, h2 { color: var(--red); border-bottom: 2px solid var(--blue); padding-bottom: 10px; margin-top: 20px; }
+        
+        /* Tab Systeem Styling */
+        .tab-menu { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; border-bottom: 2px solid var(--blue); padding-bottom: 10px; }
+        .tab-btn { padding: 12px 20px; background: var(--card); color: white; border: 1px solid var(--blue); border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.95rem; transition: 0.2s; }
+        .tab-btn.active { background: var(--blue); border-color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: var(--card); border-radius: 10px; overflow: hidden; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { background: var(--blue); color: white; }
+        .btn { padding: 10px 18px; border-radius: 8px; border: none; color: white; cursor: pointer; text-decoration: none; font-weight: bold; font-size: 0.9rem; display: inline-block; transition: 0.2s; }
+        .btn:hover { opacity: 0.9; transform: scale(1.01); }
+        .btn-blue { background: var(--blue); } .btn-red { background: var(--red); } .btn-green { background: var(--green); }
+        .btn-nav { background: #444; border: 1px solid #666; width: 100%; text-align: center; box-sizing: border-box; margin-bottom: 20px; }
+        .form-group { background: var(--card); padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--blue); }
+        input, select { padding: 10px; border-radius: 5px; border: 1px solid #ccc; background: white; color: black; }
+        .danger-zone { margin-top: 50px; padding: 30px; border: 2px dashed var(--red); border-radius: 15px; background: rgba(218, 41, 28, 0.05); text-align: center; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; }
+        .flex-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/logout" class="btn btn-nav">✖ OUTLOGGEN & TERUG NAAR BARKAART</a>
+
+        <div class="admin-header">
+            <h1>Admin Dashboard</h1>
+            <span style="background: var(--blue); padding: 5px 15px; border-radius: 20px;">
+                Ingelogd als: <strong>{{ session['user_name'] }}</strong> ({{ session['user_role'] }})
+            </span>
+        </div>
+
+        <!-- Het Nieuwe Snelmenu / Tab-navigatie -->
+        <div class="tab-menu">
+            <button class="tab-btn active" onclick="switchTab('tab-dashboard')">🏠 Dashboard</button>
+            <button class="tab-btn" onclick="switchTab('tab-kassa')">💳 Opwaarderen & Modus</button>
+            {% if has_role('penningmeester') %}<button class="tab-btn" onclick="switchTab('tab-finance')">📊 Financiën</button>{% endif %}
+            <button class="tab-btn" onclick="switchTab('tab-leden')">👥 Leden Beheren</button>
+            <button class="tab-btn" onclick="switchTab('tab-producten')">🍺 Producten</button>
+            {% if has_role('beheerder') %}<button class="tab-btn" onclick="switchTab('tab-systeem')">⚙️ Systeem & Beveiliging</button>{% endif %}
+        </div>
+
+        <!-- TAB 0: DASHBOARD (Recente logs) -->
+        <div id="tab-dashboard" class="tab-content active">
+            <h2>🕒 Recente Transacties</h2>
+            <table>
+                <thead><tr><th>Tijd</th><th>Lid</th><th>Actie</th><th>Bedrag</th></tr></thead>
+                <tbody>
+                    {% for log in recente_logs %}
+                    <tr>
+                        <td>{{ log.datum[11:16] }}</td>
+                        <td>{{ log.naam }}</td>
+                        <td>{{ log.actie }}</td>
+                        <td style="color: {% if log.bedrag < 0 %}var(--red){% else %}var(--green){% endif %}; font-weight: bold;">€ {{ "%.2f"|format(log.bedrag) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TAB 1: KASSA & OPWAARDEREN -->
+        <div id="tab-kassa" class="tab-content">
+            <div class="form-group" style="border-top: 5px solid #0052cc;">
+                <h2>💳 Saldo Opwaarderen (SumUp PIN)</h2>
+                <div style="background: rgba(0, 82, 204, 0.1); color: #66b2ff; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+                    <strong>SumUp PIN Ontvangst:</strong> Laat het lid betalen op de terminal. Toont het scherm "Betaling Geslaagd"? Selecteer hieronder de naam, vul het bedrag in en bevestig.
+                </div>
+                <form action="/admin/opwaarderen" method="POST" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <select name="naam" required style="flex: 2; min-width: 200px; padding: 12px;">
+                        <option value="" disabled selected>Wie waardeert op?</option>
+                        {% for lid in leden %}
+                        <option value="{{ lid.volledig }}">{{ lid.volledig }} (Huidig: € {{ "%.2f"|format(lid.saldo) }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" step="0.01" name="bedrag" placeholder="Bedrag (bijv. 10.00)" required style="flex: 1; padding: 12px;">
+                    <button type="submit" class="btn btn-green" style="flex: 1; min-width: 200px;" onclick="return confirmSumUp()">✅ Bevestig PIN Ontvangst</button>
+                </form>
+            </div>
+
+            <div style="padding: 15px; background: #1a2b44; border-radius: 8px; border: 1px solid #002d62;">
+                <h3 style="margin-top: 0;">Systeem Instellingen</h3>
+                <p>Huidige kassa interface-modus: <strong>{{ modus|upper }}</strong></p>
+                <a href="/admin/toggle_mode" class="btn btn-blue">🔄 Wissel Kassa Interface</a>
+            </div>
+        </div>
+
+        <!-- TAB 3: FINANCIEN -->
+        {% if has_role('penningmeester') %}
+        <div id="tab-finance" class="tab-content">
+            <h2>📊 Financiën & Periode Afsluiting</h2>
+            <div class="form-group">
+                <p style="margin-top: 0; color: #bbb;">Exporteer saldilijsten als CSV-bestand voor de administratie:</p>
+                <div class="flex-actions">
+                    <a href="/admin/export_periode?type=ALLES" class="btn btn-blue">📥 Export: Alles (CSV)</a>
+                    <a href="/admin/export_periode?type=INTERN" class="btn btn-blue">📥 Export: Alleen Interne Leden</a>
+                    <a href="/admin/export_periode?type=EXTERN" class="btn btn-blue">📥 Export: Alleen Externen (Tikkies)</a>
+                    {% if has_role('beheerder') %}
+                    <button onclick="runIntegriteitCheck()" class="btn btn-green" style="margin-left: auto;">🔍 Database Valideren</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- TAB 4: LEDEN BEHEREN -->
+        <div id="tab-leden" class="tab-content">
+            <div class="admin-header">
+                <h2>👥 Leden Beheren</h2>
+                {% if has_role('kassa') %}
+                <button onclick="triggerUndo()" class="btn btn-red" style="font-size: 0.85rem; padding: 6px 12px;">↩️ Foutje Herstellen (Undo Laatste Streep)</button>
+                {% endif %}
+            </div>
+            
+            {% if has_role('beheerder') %}
+            <div class="form-group" style="border-color: var(--green);">
+                <p style="margin-top: 0; color: #bbb; font-size: 0.9rem;"><strong>Leden Batch Import:</strong> Upload een CSV-bestand (gescheiden door <code>;</code>) met kolommen: <code>voornaam;tussenvoegsel;achternaam;speleenheid</code></p>
+                <form action="/admin/batch_import" method="post" enctype="multipart/form-data" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <input type="file" name="csv_file" accept=".csv" required style="background: var(--dark); padding: 10px; color: white; border: 1px solid rgba(255,255,255,0.2);">
+                    <button type="submit" class="btn btn-green">📤 CSV Importeren</button>
+                </form>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <p style="margin-top: 0;"><strong>Handmatig lid toevoegen:</strong></p>
+                <form action="/admin/add" method="POST" style="display:flex; gap:10px; flex-wrap: wrap;">
+                    <input type="text" name="voornaam" placeholder="Voornaam" required style="width:120px;">
+                    <input type="text" name="tussenvoegsel" placeholder="Tussen" style="width:60px;">
+                    <input type="text" name="achternaam" placeholder="Achternaam" required style="width:120px;">
+                    <select name="eenheid" required>
+                        <option value="" disabled selected>Kies speltak...</option>
+                        <option value="Bevers">Bevers</option><option value="Welpen">Welpen</option><option value="Waterwelpen">Waterwelpen</option><option value="Scouts">Scouts</option><option value="Waterscouts">Waterscouts</option><option value="Explorers">Explorers</option><option value="Waterexplorers">Waterexplorers</option><option value="Stam">Stam</option><option value="Stichtingbestuur">Stichtingbestuur</option><option value="Ondersteuningsteam">Ondersteuningsteam</option><option value="Verenigingsbestuur">Verenigingsbestuur</option><option value="(N)TD">(N)TD</option><option value="Extern">Extern</option>
+                    </select>
+                    <button type="submit" class="btn btn-blue">Lid Toevoegen</button>
+                </form>
+            </div>
+
+            <table>
+                <thead><tr><th>Naam</th><th>Speltak</th><th>Saldo</th><th>Acties</th></tr></thead>
+                <tbody>
+                    {% for lid in leden %}
+                    <tr>
+                        <td>{{ lid.volledig }}</td>
+                        <td><small>{{ lid.eenheid }}</small></td>
+                        <td style="font-weight:bold; color: {% if lid.saldo >= 0 %}var(--green){% else %}var(--red){% endif %};">€ {{ "%.2f"|format(lid.saldo) }}</td>
+                        <td>
+                            {% if has_role('penningmeester') %}
+                            <a href="/admin/reset_saldo/{{ lid.volledig|urlencode }}" class="btn btn-green" style="padding: 5px 10px; font-size: 0.8rem;" onclick="return confirm('Saldo resetten naar 0?')">💰 Reset</a>
+                            {% endif %}
+                            {% if has_role('superadmin') %}
+                            <a href="/admin/archiveer_lid/{{ lid.volledig|urlencode }}" class="btn btn-red" style="padding: 5px 10px; font-size: 0.8rem;" onclick="return confirm('Lid archiveren?')">📦 Archiveer</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TAB 5: PRODUCTEN -->
+        <div id="tab-producten" class="tab-content">
+            <h2>🍺 Producten Beheren</h2>
+            {% if has_role('beheerder') %}
+            <div class="form-group">
+                <form action="/admin/product/add" method="POST" style="display:flex; gap:10px; flex-wrap: wrap;" id="productForm">
+                    <input type="text" name="naam" id="prod_naam" placeholder="Productnaam" required>
+                    <input type="number" step="0.01" name="prijs" id="prod_prijs" placeholder="Prijs" required>
+                    <button type="submit" class="btn btn-blue" id="prod_submit">Product Toevoegen / Wijzigen</button>
+                </form>
+            </div>
+            {% endif %}
+
+            <table>
+                <thead><tr><th>Product</th><th>Prijs</th>{% if has_role('beheerder') %}<th>Acties</th>{% endif %}</tr></thead>
+                <tbody>
+                    {% for p in producten %}
+                    <tr>
+                        <td>{{ p.Naam }}</td>
+                        <td>€ {{ "%.2f"|format(p.Prijs) }}</td>
+                        {% if has_role('beheerder') %}
+                        <td>
+                            <button class="btn btn-blue" style="padding: 5px 10px;" onclick="fillProductForm('{{ p.Naam|replace("'", "\\'") }}', {{ p.Prijs }})">✏️</button>
+                            <a href="/admin/product/delete/{{ p.Naam|urlencode }}" class="btn btn-red" onclick="return confirm('Product verwijderen?')">🗑️</a>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TAB 6: SYSTEEM & BERICHTEN -->
+        {% if has_role('beheerder') %}
+        <div id="tab-systeem" class="tab-content">
+            <h2>📢 Bar Mededeling</h2>
+            <form action="/admin/update_message" method="POST" class="form-group">
+                <p style="margin-top: 0; color: #bbb;">Dit bericht verschijnt op het hoofdscherm van de kassa's.</p>
+                <input type="text" name="message" value="{{ bar_message }}" placeholder="Bericht voor alle kassa's..." style="width:70%;">
+                <button type="submit" class="btn btn-green">Bericht Opslaan</button>
+            </form>
+
+            <div style="margin: 20px 0; padding: 20px; background: rgba(0, 172, 237, 0.1); border-radius: 15px; border: 1px solid #00aced; text-align: center;">
+                <h3 style="color:#00aced; margin-top:0;">☁️ Google Drive Sync</h3>
+                <p>Upload handmatig de database en saldilijst naar de scouting-cloud.</p>
+                <a href="/admin/cloud_sync" class="btn btn-blue" onclick="this.innerText='Bezig met uploaden...'; this.style.opacity='0.5';">📤 Start Handmatige Cloud Sync</a>
+            </div>
+
+            <h2>⚠️ Systeem Logs (errordump.txt)</h2>
+            <div style="background: black; color: #0f0; padding: 15px; font-family: monospace; border-radius: 10px; height: 200px; overflow-y: auto; border: 1px solid #333; font-size: 0.85rem; line-height: 1.4;">
+                {% for line in error_logs %}{{ line }}<br>{% endfor %}
+            </div>
+
+            {% if has_role('superadmin') %}
+            <div class="form-group" style="text-align: center; border-color: var(--red);">
+                <h2>🛠️ Systeem Onderhoud</h2>
+                <p>Gebruik dit om de kassa te blokkeren voor onderhoud tijdens updates.</p>
+                <a href="/admin/toggle_maintenance" class="btn {% if maintenance %}btn-green{% else %}btn-red{% endif %}">
+                    {% if maintenance %} ✅ STOP ONDERHOUD (ZET BAR LIVE) {% else %} ⚠️ START ONDERHOUD (PAUZEER BAR) {% endif %}
+                </a>
+            </div>
+
+            <h2>🔐 Admin Toegang Beheren</h2>
+            <div class="form-group" style="border-color: var(--green);">
+                <form action="/admin/admin/add" method="POST" style="display:flex; gap:10px; flex-wrap: wrap;">
+                    <input type="text" name="username" placeholder="Naam" required>
+                    <input type="text" name="pincode" placeholder="Pincode" required style="width:100px;">
+                    <select name="role">
+                        {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-green">➕ Admin Toevoegen</button>
+                </form>
+            </div>
+
+            <table>
+                <thead><tr><th>Gebruiker</th><th>Rol</th><th>Pin</th><th>Actie</th></tr></thead>
+                <tbody>
+                    {% for a in all_admins %}
+                    <tr>
+                        <td><strong>{{ a.Gebruiker }}</strong></td>
+                        <td colspan="2">
+                            <form action="/admin/update_admin" method="POST" style="display: flex; gap: 5px;">
+                                <input type="hidden" name="username" value="{{ a.Gebruiker }}">
+                                <select name="role" style="padding: 5px;">
+                                    {% for r in roles %}<option value="{{ r }}" {% if a.Rol == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                                </select>
+                                <input type="text" name="pincode" value="{{ a.Pincode }}" style="width: 80px; text-align: center; padding: 5px;">
+                                <button type="submit" class="btn btn-green">💾</button>
+                            </form>
+                        </td>
+                        <td>
+                            {% if a.Gebruiker != session['user_name'] %}
+                            <a href="/admin/admin/delete/{{ a.Gebruiker|urlencode }}" class="btn btn-red" style="padding: 5px 10px;">🗑️</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="danger-zone">
+                <h3 style="color:var(--red);">🔥 Grote Schoonmaak</h3>
+                <p>Verwijder de volledige transactiehistorie uit de SQL database. Iedereen begint weer op € 0,00.</p>
+                <button class="btn btn-red" onclick="triggerFullReset()">RESET DE GEHELE LOG & SALDI</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <p style="text-align:center; color: #888; font-size: 1.1rem; font-weight: bold; margin-top: 50px; border-top: 1px solid #333; padding-top: 20px;">
+            🚀 Shawano's BarSysteem — Versie {{ version }}
+        </p>
+    </div>
+
+    <script>
+        // --- EENVOUDIGE TAB SWITCHER ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function fillProductForm(naam, prijs) {
+            document.getElementById('prod_naam').value = naam;
+            document.getElementById('prod_prijs').value = prijs;
+            document.getElementById('prod_submit').innerText = "✅ Prijs Bijwerken";
+            document.getElementById('prod_submit').classList.replace('btn-blue', 'btn-green');
+            document.getElementById('prod_naam').focus();
+        }
+
+        function confirmSumUp() {
+            const bedrag = document.getElementsByName('bedrag')[0].value;
+            const naam = document.getElementsByName('naam')[0].value;
+            if (!naam || !bedrag) return true;
+            return confirm("Check: Heb je de € " + bedrag + " daadwerkelijk ontvangen op de SumUp voor " + naam + "?");
+        }
+
+        function triggerFullReset() {
+            if (confirm("LET OP! Je gaat nu de GEHELE historie verwijderen.")) {
+                if (confirm("WEET JE HET ECHT ZEKER?")) { window.location.href = "/admin/reset_all"; }
+            }
+        }
+
+        function triggerUndo() {
+            if (confirm("Weet je zeker dat je de allerlaatste streep-actie ongedaan wilt maken?")) {
+                fetch('/admin/undo_last_streep')
+                .then(res => res.json())
+                .then(data => { alert(data.message); if(data.status === 'success') { location.reload(); } });
+            }
+        }
+
+        function runIntegriteitCheck() {
+            fetch('/admin/check_integriteit').then(res => res.json()).then(data => alert(data.message));
+        }
+    </script>
+</body>
+</html>
