@@ -1,0 +1,82 @@
+============================================================
+                VOLLEDIGE HISTORIE & CHANGELOG
+============================================================
+
+VERSIE 1.4.1 (Huidige Update)
+---------------------
+- NIEUW: Versienummer nu live zichtbaar op de Index-pagina (linksboven).
+- UI: Versie-tag subtiel weergegeven (semi-transparant) om niet af te leiden.
+- CODE: Centrale VERSION variabele in app.py voor makkelijker onderhoud.
+- BUGFIX: Fix voor dubbele return-path in de index-route die versie-informatie blokkeerde.
+
+VERSIE 1.4.0
+---------------------
+- NIEUW: Volledige SumUp-integratie (handmatige workflow).
+- NIEUW: Opwaarderen nu specifiek gelogd als 'OPWAARDEREN (SUMUP PIN)' voor de penningmeester.
+- UI: Instructie-box en extra bevestigings-popup toegevoegd bij opwaarderen om fouten te voorkomen.
+- UX: Sortering van leden en admins is nu hoofdletter-ongevoelig (A-Z klopt nu altijd).
+
+VERSIE 1.3.7
+---------------------
+- NIEUW: Rollensysteem geïntroduceerd (Kassa, Penningmeester, Beheerder, Superadmin).
+- NIEUW: "Externen-beveiliging": Leden met speltak 'Extern' kunnen NIET meer in de min staan.
+- NIEUW: Onderhoudsmodus toegevoegd (maintenance.html) met automatische 5-seconden refresh.
+- DESIGN: Admin-login volledig in thema met foutmeldingen en 'shake'-animatie bij verkeerde pincode.
+- STABILITEIT: Wrapper-architectuur (run.py) houdt de app online bij crashes.
+
+VERSIE 1.2.2 
+---------------------
+- CRITICAL FIX: 'Excel Lock' systeem (Threading Lock) toegevoegd. Voorkomt database-corruptie bij gelijktijdig gebruik.
+- BUGFIX: Crash bij het laden van de index verholpen door geforceerde string-conversie in Pandas.
+- VEILIGHEID: Alle kritieke admin-acties achter de nieuwe autorisatie-check gezet.
+
+VERSIE 1.2.1
+---------------------
+- BUGFIX: Leden direct bij aanmaak alfabetisch gesorteerd in de brondatabase.
+- FIX: De synchronisatie-loop tussen de 'Leden'-sheet en de 'Saldo'-sheet geoptimaliseerd.
+
+VERSIE 1.2.0
+------------
+- NIEUW: Saldo opwaarderen functie toegevoegd voor leden.
+- NIEUW: Dubbele pop-up bevestiging bij het wissen van de log ("Grote Schoonmaak").
+- AANPASSING: Dynamische Speltak-dropdown toegevoegd bij ledenbeheer.
+- UX: Ledenlijst in Admin-panel volledig alfabetisch gemaakt (A-Z).
+
+VERSIE 1.1.0
+------------
+- NIEUW: Historie-view per lid: Zie je laatste 5 bestellingen bij het strepen.
+- UI: Introductie van de 'Numpad' (1 t/m 10 + Krat knoppen) voor sneller strepen.
+- UI: Modal-schermen (pop-ups) toegevoegd voor een schonere index-pagina.
+
+VERSIE 1.0.1
+------------
+- BUGFIX: Fix voor namen met tussenvoegsels (bijv. 'van den Berg') in de Excel-verwerking.
+- DESIGN: Logo van Shawano toegevoegd aan de header.
+
+VERSIE 1.0.0 (Launch)
+------------
+- BASIS: Eerste werkende versie met Flask & Excel als database.
+- CORE: Streep-functionaliteit en automatische saldo-berekening.
+- UI: Alfabetisch filtermenu (A-Z) voor snelle navigatie op tablets.
+
+------------------------------------------------------------
+WENSENLIJST VOOR DE TOEKOMST:
+------------------------------------------------------------
+[ ] 4. Andere database structuur......
+[ ] 5.  FOUT-LOGGING: Automatisch errordump-bestand (.txt) genereren bij crashes.
+[ ] 6.  HOSTING: Overstap naar Shawano-omgeving (SSH/SFTP via Thijs Z?).
+[ ] 7.  CLOUD-SYNC: Automatische back-up naar Google Drive of Dropbox.
+[ ] 8.  BATCH IMPORT: Ledenlijst in één keer inladen vanuit een CSV-bestand.
+[ ] 9.  PRE-STREEP INFO: Bedrag zien van (product * aantal) vóór het definitief strepen.
+[ ] 10. BACK-UP SYSTEEM: Elke nacht een automatische kopie van de Excel met datum-stempel.
+[ ] 11. DASHBOARD: Statistieken (populairste producten & piektijden) voor de beheerder.
+[ ] 12. MAIL-NOTIFICATIE: Leden met een te laag saldo (bijv. < -€25) een herinnering mailen.
+[ ] 13. AUDIT LOG: Bijhouden welke Admin welke actie heeft uitgevoerd (veiligheid).
+[ ] 14. Maandafsluting, pdf export die de saldo's bevriest of reset
+[ ] 15. INTEGRITEIT: Controle-knop om Saldo vs Log te valideren.
+[ ] 16. ARCHIEF: Leden op 'Inactief' kunnen zetten.
+[ ] 17. VOORRAAD: Beheer via Admin-paneel (bijvullen/correctie). TOEKOMST
+[ ] 18. PERIODE-AFSLUITING: Maandelijkse rapportage en filtering (Intern vs Extern).
+[ ] 19. UNDO-KNOP: Laatste foutieve streep direct ongedaan maken.
+[ ] 20. Admin-console: Tik commando's terwijl de bar draait. 
+------------------------------------------------------------
